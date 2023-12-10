@@ -1,4 +1,4 @@
-### R implementation of PENGUINS
+### R implementation of PENGUIN(S)
 options(stringsAsFactors = FALSE)
 
 ### Require dependencies, and install automatically if user doesn't already have them installed
@@ -29,6 +29,7 @@ option_list <- list(
   make_option("--N", action = "store", default = NULL, type = "character"),
   make_option("--Ns", action = "store", default = NULL, type = "integer"),
   # optional
+  make_option("--individual_files", action = "store", default = NULL, type = "character"),
   make_option("--hm3", action = "store", default = "./w_hm3.noMHC.snplist", type = "character"),
   make_option("--ld", action = "store", default = "./eur_w_ld_chr/", type = "character"),
   make_option("--wld", action = "store", default = "./eur_w_ld_chr/", type = "character")
@@ -43,6 +44,12 @@ output_path <- opt$output
 N <- as.numeric(unlist(strsplit(opt$N, split = ",")))
 Ns <- opt$Ns
 # Optional inputs
+if (type == "individual" && is.null(opt$individual_files)) {
+  stop("You didn't provide individual-level data, did you want to use the PENGUIN-S sumstats approach? If so, please pass the flag --type sumstats")
+}
+if (!is.null(opt$individual_files)) {
+  individual_files <- as.character(unlist(strsplit(opt$individual_files, split = ",")))
+}
 hm3 <- opt$hm3
 ld <- opt$ld
 wld <- opt$wld
@@ -78,7 +85,7 @@ if (type == "individual") {
   covariate <- fread("./example/covariates.txt")
   colnames(covariate)[3] <- "X"
   head(covariate)
-  phen <- base::merge(x=phen, y=covariate ,by.x = c("IID", "FID") ,by.y = c("IID", "FID"))
+  phen <- base::merge(x = phen, y = covariate, by.x = c("IID"), by.y = c("IID"))
   phen <- na.omit(phen)
 
   # extract x and y residuals from lm fitted with covariates
