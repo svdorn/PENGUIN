@@ -69,7 +69,7 @@ LDSCoutput <- ldsc(traits = paste0(munged_files, ".sumstats.gz")
       , population.prev = c(NA, NA)
       , ldsc.log = paste0(output_path, "/penguin")
       , ld = ld, wld = wld)
-# extract data from LDSCoutput
+# extract data from LDSCoutput that will be used in both PENGUIN and PENGUIN-S
 x.var <- LDSCoutput$S[4]
 xy.cov <- LDSCoutput$S[2]
 
@@ -77,20 +77,23 @@ xy.cov <- LDSCoutput$S[2]
 cat("\nCalculating closed form solution for genetic confounding...\n")
 if (type == "individual") {
   ### PENGUIN - Genetic confounding with INDIVIDUAL-LEVEL DATA
-  cat("PENGUIN - calculating closed form solution with individual-level data.\n")
+  cat("Using PENGUIN - calculating closed form solution with individual-level data.\n")
   # read phenotype and covariates data and merge together
-  phen <- fread("./example/LLC.txt")
-  head(phen)
+  phen <- fread(individual_files[1])
   colnames(phen)[3] <- "Y"
-  covariate <- fread("./example/covariates.txt")
+  phen <- subset(phen, select = -FID)
+  covariate <- fread(individual_files[2])
   colnames(covariate)[3] <- "X"
-  head(covariate)
+  covariate <- subset(covariate, select = -FID)
   phen <- base::merge(x = phen, y = covariate, by.x = c("IID"), by.y = c("IID"))
   phen <- na.omit(phen)
+  covariate_columns <- names(phen)[4:length(phen)]
 
   # extract x and y residuals from lm fitted with covariates
-  y.res <- resid(lm(Y ~ SEX + YOB + SEXYOB + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, data = phen))
-  x.res <- resid(lm(X ~ SEX + YOB + SEXYOB + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, data = phen))
+  y.res.formula <- as.formula(paste("Y ~", paste(covariate_columns, collapse = "+")))
+  x.res.formula <- as.formula(paste("X ~", paste(covariate_columns, collapse = "+")))
+  y.res <- resid(lm(y.res.formula, data = phen))
+  x.res <- resid(lm(x.res.formula, data = phen))
   y.res <- scale(y.res)
   x.res <- scale(x.res)
   dat <- data.frame(Y = y.res, X = x.res)
@@ -124,7 +127,7 @@ if (type == "individual") {
   out <- c("BETA" = cov.beta, "SE" = se.est, "P" = p.cov, "BETA_Marginal_Regression" = beta.marg, "SE_Marginal_Regression" = se.marg, "P_Marginal_Regression" = p.marg)
 } else {
   ### PENGUIN-S - Genetic confounding with SUMSTATS DATA
-  cat("PENGUIN-S - calculating closed form solution with sumstats data.\n")
+  cat("Using PENGUIN-S - calculating closed form solution with sumstats data.\n")
   # calculate xy covariance from LDSC intercept
   ldsc.xycov <- (LDSCoutput$N[2] / Ns) * LDSCoutput$I[2]
 
