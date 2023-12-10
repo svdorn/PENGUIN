@@ -1,7 +1,7 @@
 ### R implementation of PENGUINS
 options(stringsAsFactors = FALSE)
 
-## Require dependencies, and install automatically if user doesn't already have them installed
+### Require dependencies, and install automatically if user doesn't already have them installed
 repos <- "https://cloud.r-project.org"
 if (!require(data.table)) {
   install.packages("data.table", repos = repos)
@@ -20,14 +20,12 @@ if (!require(GenomicSEM)) {
   library(GenomicSEM)
 }
 
-## Read the arguments into R
+### Read the arguments into R
 option_list <- list(
   # required
   make_option("--sumstat_files", action = "store", default = NULL, type = "character"),
-  #make_option("--y_path", action = "store", default = NULL, type = "character"),
-  #make_option("--x_path", action = "store", default = NULL, type = "character"),
-  make_option("--output", action = "store", default = NULL, type = "character"),
   make_option("--type", action = "store", default = "individual", type = "character"),
+  make_option("--output", action = "store", default = "./", type = "character"),
   make_option("--N", action = "store", default = NULL, type = "character"),
   make_option("--Ns", action = "store", default = NULL, type = "integer"),
   # optional
@@ -36,39 +34,29 @@ option_list <- list(
   make_option("--wld", action = "store", default = "./eur_w_ld_chr/", type = "character")
 )
 
-### step 0. specify the inputs
+### Read in user inputs
 opt <- parse_args(OptionParser(option_list = option_list))
 # Required inputs
-sumstat_files <- unlist(strsplit(opt$sumstat_files, split = ","))
-output_path <- opt$output
+sumstat_files <- as.character(unlist(strsplit(opt$sumstat_files, split = ",")))
 type <- opt$type
+output_path <- opt$output
 N <- as.numeric(unlist(strsplit(opt$N, split = ",")))
 Ns <- opt$Ns
 # Optional inputs
 hm3 <- opt$hm3
 ld <- opt$ld
 wld <- opt$wld
-cat("\noutput Path: ", output_path)
-cat("\nN: ", N)
-cat("\nNs: ", Ns)
-cat("\nhm3: ", hm3)
-cat("\nld: ", ld)
-cat("\nwld: ", wld)
-#sumstat_files <- c("./example/SavageJansen_2018_intelligence_metaanalysis.txt.gz", "./example/GWAS_EA_excl23andMe.txt.gz")
-#N <- c(269867, 766345)
-#Ns <- 195653
-#output_path <- "./output"
-#hm3 <- "./w_hm3.noMHC.snplist"
-#ld <- "./eur_w_ld_chr/"
-#wld <- ld
-munged_files <- c(paste0(output_path, "/munge1"), paste0(output_path, "/munge2"))
+# munged files path
+munged_files <- c(paste0(output_path, "/penguin1"), paste0(output_path, "/penguin2"))
 
-### step 1: run LD score regression for inputed GWAS sumstat files using GenomicSEM
+### Run LD score regression for inputed GWAS sumstat files using GenomicSEM
+cat("\nMunging input GWAS sumstats...\n")
 munge(files = sumstat_files, N = N,
       hm3 = hm3, trait.names = munged_files,
-      log.name = paste0(output_path, "/munge"),
+      log.name = paste0(output_path, "/penguin"),
       parallel = TRUE, cores = 2)
 ## sample prev and population prev currently assuming continuous variables
+cat("\nRunning LDSC...\n")
 LDSCoutput <- ldsc(traits = paste0(munged_files, ".sumstats.gz")
       , sample.prev = c(NA, NA)
       , population.prev = c(NA, NA)
@@ -78,9 +66,11 @@ LDSCoutput <- ldsc(traits = paste0(munged_files, ".sumstats.gz")
 x.var <- LDSCoutput$S[4]
 xy.cov <- LDSCoutput$S[2]
 
-## STEP 2a - calculate phenotypic covariance between the exposure and outcome on the individual-level phenotype data
-# individual level data (phenotype, covariates, run lm to get y.res and x.res)
+### Calculate phenotypic covariance between the exposure and outcome
+cat("\nCalculating closed form solution for genetic confounding...\n")
 if (type == "individual") {
+  ### PENGUIN - Genetic confounding with INDIVIDUAL-LEVEL DATA
+  cat("PENGUIN - calculating closed form solution with individual-level data.\n")
   # read phenotype and covariates data and merge together
   phen <- fread("./example/LLC.txt")
   head(phen)
@@ -123,10 +113,11 @@ if (type == "individual") {
 
   # calculate p-value
   p.cov <- 2 * pnorm(abs(cov.beta / se.est), lower.tail = FALSE)
-  ## Output data
+  # output data
   out <- c("BETA" = cov.beta, "SE" = se.est, "P" = p.cov, "BETA_Marginal_Regression" = beta.marg, "SE_Marginal_Regression" = se.marg, "P_Marginal_Regression" = p.marg)
 } else {
-  ## Step 2b - SUMSTATS ONLY
+  ### PENGUIN-S - Genetic confounding with SUMSTATS DATA
+  cat("PENGUIN-S - calculating closed form solution with sumstats data.\n")
   # calculate xy covariance from LDSC intercept
   ldsc.xycov <- (LDSCoutput$N[2] / Ns) * LDSCoutput$I[2]
 
@@ -148,8 +139,9 @@ if (type == "individual") {
 
   # calculate p-value
   p.cov <- 2 * pnorm(abs(cov.beta / se.est), lower.tail = FALSE)
-  ## Output data
+  # output data
   out <- c("BETA" = cov.beta, "SE" = se.est, "P" = p.cov)
 }
-cat("\n")
+
+cat("\nGenetic confounding sumstats:\n")
 print(out)
