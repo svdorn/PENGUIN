@@ -53,7 +53,7 @@ if (!is.null(opt$individual_files)) {
 hm3 <- opt$hm3
 ld <- opt$ld
 wld <- opt$wld
-# munged files path
+# Munged files path
 munged_files <- c(paste0(output_path, "/penguin1"), paste0(output_path, "/penguin2"))
 
 ### Run LD score regression for inputed GWAS sumstat files using GenomicSEM
@@ -69,7 +69,7 @@ LDSCoutput <- ldsc(traits = paste0(munged_files, ".sumstats.gz")
       , population.prev = c(NA, NA)
       , ldsc.log = paste0(output_path, "/penguin")
       , ld = ld, wld = wld)
-# extract data from LDSCoutput that will be used in both PENGUIN and PENGUIN-S
+# Extract data from LDSCoutput that will be used in both PENGUIN and PENGUIN-S
 x.var <- LDSCoutput$S[4]
 xy.cov <- LDSCoutput$S[2]
 
@@ -150,7 +150,7 @@ if (type == "individual") {
   # calculate p-value
   p.cov <- 2 * pnorm(abs(cov.beta / se.est), lower.tail = FALSE)
   # output data
-  out <- c("BETA" = cov.beta, "SE" = se.est, "P" = p.cov)
+  out <- c("BETA" = format(cov.beta, scientific = F), "SE" = format(se.est, scientific = F), "P" = p.cov)
 }
 
 cat("\nGenetic confounding sumstats:\n")
